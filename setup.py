@@ -56,15 +56,15 @@ tests_require = [
     'virtualenv>=1.11.2']
 
 setup(
-    name='snakebite-py3',
+    name='snakebite',
     version=version(),
-    author=u'Wouter de Bie',
-    author_email='wouter@spotify.com',
-    description='Pure Python HDFS client',
+    author=u'Alexander Kazarin',
+    author_email='boiler@xdot.ru',
+    description='Pure Python HDFS client with patches',
     long_description=open(os.path.join(
         os.path.dirname(__file__), 'README.md'), encoding='UTF-8').read(),
     long_description_content_type='text/markdown',
-    url='http://github.com/internetarchive/snakebite-py3',
+    url='https://github.com/boiler/snakebite-py3',
     packages=['snakebite', 'snakebite.protobuf'],
     scripts=['bin/snakebite'],
     license='Apache License 2.0',
