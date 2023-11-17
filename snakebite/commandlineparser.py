@@ -194,7 +194,7 @@ class CommandLineParser(object):
         self._add_subparsers()
         #self.namenodes = []
         self.nameservices = {}
-        self.links = None
+        self.links = {}
         self.user = None
         self.use_sasl = False
 
@@ -266,14 +266,15 @@ class CommandLineParser(object):
         self.setup_client()
 
     def _clean_args(self):
-        for path in self.__get_all_directories():
-            if path.startswith('hdfs://'):
-                parse_result = urlparse(path)
-                if 'dir' in self.args and path in self.args.dir:
-                    self.args.dir.remove(path)
-                    self.args.dir.append(parse_result.path)
-                else:
-                    self.args.single_arg = parse_result.path
+        pass
+        #for path in self.__get_all_directories():
+        #    if path.startswith('hdfs://'):
+        #        parse_result = urlparse(path)
+        #        if 'dir' in self.args and path in self.args.dir:
+        #            self.args.dir.remove(path)
+        #            self.args.dir.append(parse_result.path)
+        #        else:
+        #            self.args.single_arg = parse_result.path
 
     def __usetrash_unset(self):
         return not 'usetrash' in self.args or self.args.usetrash == False
@@ -308,7 +309,7 @@ class CommandLineParser(object):
                 #    self.args.usetrash = self.configs['use_trash']
                 #self.use_sasl = self.configs['use_sasl']
                 nameservices = {}
-                links = None
+                links = {}
                 configs = self.configs
                 hadoop_version = Namenode.DEFAULT_VERSION
                 for ns in configs['nameservices']:

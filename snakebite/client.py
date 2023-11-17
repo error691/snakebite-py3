@@ -13,9 +13,6 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-# python 3 support
-from __future__ import absolute_import, print_function, division
-
 import snakebite.protobuf.ClientNamenodeProtocol_pb2 as client_proto
 import snakebite.glob as glob
 from snakebite.platformutils import get_current_username
@@ -35,10 +32,7 @@ from snakebite.namenode import Namenode
 from snakebite.service import RpcService
 from snakebite.compat import range, unicode, long
 
-try:
-    from urlparse import urlparse
-except ImportError:
-    from urllib.parse import urlparse
+from urllib.parse import urlparse
 
 try:
     from Queue import PriorityQueue
@@ -1580,6 +1574,8 @@ class MultiHAClient(object):
             raise InvalidInputException("No default nameservice")
 
     def _get_ns(self, path):
+        if path.startswith("hdfs://"):
+            return urlparse(path).netloc
         if not self.links:
             return self.default_nameservice
         for k in reversed(sorted(self.links.keys())):
@@ -1590,25 +1586,31 @@ class MultiHAClient(object):
         raise FileNotFoundException("`%s': No such file or directory" % path)
 
     def _get_path(self, path):
+        if path.startswith("hdfs://"):
+            return urlparse(path).path
         if not self.links:
             return path
         for k in reversed(sorted(self.links.keys())):
             if path == k or path.startswith(k+'/'):
                 return self.links[k][1] + path[len(k):]
         if self.links.get('_fallback'):
-            return self.links['_fallback'][1] + path[len(k):]
+            return self.links['_fallback'][1].rstrip('/') + path
         raise FileNotFoundException("`%s': No such file or directory" % path)
 
     def _get_client(self, path):
-        #print "----", path, self._get_ns(path), self._get_path(path)
         return self.nsclients[self._get_ns(path)]
 
     def _call_client(self, client_func, paths, *args, **kwargs):
         for path in paths:
-            #print "--", client_func, path, self._get_ns(path), self._get_path(path)
             f = getattr(self._get_client(path), client_func)
             for r in f([self._get_path(path)], *args, **kwargs):
                 yield r
+
+    def _path_link_replace(self, reqpath, path):
+        for l, lv in self.links.items():
+            if reqpath == l or (reqpath.rstrip('/')+'/').startswith(l.rstrip('/')+'/'):
+                return l.rstrip('/') + '/' + path[len(lv[1]):]
+        return path
 
     def chmod(self, paths, *args, **kwargs):
         for r in self._call_client('chmod', paths, *args, **kwargs):
@@ -1670,10 +1672,26 @@ class MultiHAClient(object):
     #    for r in self._call_client('copyFromLocal', paths, *args, **kwargs):
     #        yield r
 
-    def ls(self, paths, *args, **kwargs):
+    def ls(self, paths, add_extra=False, *args, **kwargs):
         for path in paths:
+            links = set()
+            for l, lv in self.links.items():
+                if os.path.dirname(l) == path:
+                    links.add(l)
+            prevpath = ""
             for r in self._get_client(path).ls([self._get_path(path)], *args, **kwargs):
-                r['nameservice'] = self._get_ns(path)
+                r['path'] = self._path_link_replace(path, r['path'])
+                if add_extra:
+                    r['nameservice'] = self._get_ns(path)
+                for l in list(links):
+                    if l > prevpath and l < r['path']:
+                        lr = self.stat([l], add_extra=add_extra)
+                        lr['path'] = l
+                        if add_extra:
+                            lr['link'] = True
+                        yield lr
+                        links.remove(l)
+                prevpath = r['path']
                 yield r
 
     def df(self, nameservice=None):
@@ -1698,10 +1716,11 @@ class MultiHAClient(object):
     def getmerge(self, path, dst, newline=False, check_crc=False):
         yield self._get_client(path).getmerge(self._get_path(path), dst, newline, check_crc)
 
-    def stat(self, paths):
+    def stat(self, paths, add_extra=False):
         for path in paths:
             r = self._get_client(path).stat([self._get_path(path)])
-            r['nameservice'] = self._get_ns(path)
+            if add_extra:
+                r['nameservice'] = self._get_ns(path)
             return r
             # bullshit, I know, but see original implementation
 
@@ -1745,7 +1764,7 @@ class AutoConfigClient(MultiHAClient):
 
         configs = HDFSConfig.get_external_config()
         nameservices = {}
-        links = None
+        links = {}
         for ns in configs['nameservices']:
             namenodes = []
             for nn in configs['nameservices'][ns]['namenodes']:
