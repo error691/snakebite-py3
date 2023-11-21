@@ -1703,14 +1703,14 @@ class MultiHAClient(object):
         for path in paths:
             if self._get_ns(path) != self._get_ns(dst):
                 raise InvalidInputException("Does not match target filesystem")
-        for r in self._call_client('rename', paths, *args, **kwargs):
+        for r in self._call_client('rename', [path], self._get_path(dst)):
             yield r
 
     def rename2(self, path, dst, overwriteDest=False):
         for path in paths:
             if self._get_ns(path) != self._get_ns(dst):
                 raise InvalidInputException("Does not match target filesystem")
-        for r in self._get_client(path).rename2(self._get_path(path), dst, overwriteDest):
+        for r in self._get_client(path).rename2(self._get_path(path), self._get_path(dst), overwriteDest):
             yield r
 
     def getmerge(self, path, dst, newline=False, check_crc=False):
