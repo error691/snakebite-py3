@@ -1592,9 +1592,9 @@ class MultiHAClient(object):
             return path
         for k in reversed(sorted(self.links.keys())):
             if path == k or path.startswith(k+'/'):
-                return self.links[k][1] + path[len(k):]
+                return os.path.join(self.links[k][1], path[len(k):])
         if self.links.get('_fallback'):
-            return self.links['_fallback'][1].rstrip('/') + path
+            return os.path.join(self.links['_fallback'][1], path)
         raise FileNotFoundException("`%s': No such file or directory" % path)
 
     def _get_client(self, path):
@@ -1604,12 +1604,18 @@ class MultiHAClient(object):
         for path in paths:
             f = getattr(self._get_client(path), client_func)
             for r in f([self._get_path(path)], *args, **kwargs):
+                if 'path' in r:
+                    r['path'] = self._path_link_replace(path, r['path'])
+                if r.get('message', '').startswith(". Moved"): # delete to Trash message fix
+                    ns = self._get_ns(path)
+                    ms = r['message'].split()
+                    r['message'] = ". Moved hdfs://%s%s to hdfs://%s%s" % (ns, ms[2], ns, ms[4])
                 yield r
 
     def _path_link_replace(self, reqpath, path):
         for l, lv in self.links.items():
             if reqpath == l or (reqpath.rstrip('/')+'/').startswith(l.rstrip('/')+'/'):
-                return l.rstrip('/') + '/' + path[len(lv[1]):]
+                return os.path.join(l, path[len(lv[1]):])
         return path
 
     def chmod(self, paths, *args, **kwargs):
