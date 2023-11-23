@@ -1601,15 +1601,18 @@ class MultiHAClient(object):
         return self.nsclients[self._get_ns(path)]
 
     def _call_client(self, client_func, paths, *args, **kwargs):
+        if not isinstance(paths, list):
+            raise InvalidInputException("Paths should be a list")
         for path in paths:
             f = getattr(self._get_client(path), client_func)
             for r in f([self._get_path(path)], *args, **kwargs):
-                if 'path' in r:
-                    r['path'] = self._path_link_replace(path, r['path'])
-                if r.get('message', '').startswith(". Moved"): # delete to Trash message fix
-                    ns = self._get_ns(path)
-                    ms = r['message'].split()
-                    r['message'] = ". Moved hdfs://%s%s to hdfs://%s%s" % (ns, ms[2], ns, ms[4])
+                if isinstance(r, dict):
+                    if 'path' in r:
+                        r['path'] = self._path_link_replace(path, r['path'])
+                    if r.get('message', '').startswith(". Moved"): # delete to Trash message fix
+                        ns = self._get_ns(path)
+                        ms = r['message'].split()
+                        r['message'] = ". Moved hdfs://%s%s to hdfs://%s%s" % (ns, ms[2], ns, ms[4])
                 yield r
 
     def _path_link_replace(self, reqpath, path):
@@ -1679,6 +1682,8 @@ class MultiHAClient(object):
     #        yield r
 
     def ls(self, paths, add_extra=False, *args, **kwargs):
+        if not isinstance(paths, list):
+            raise InvalidInputException("Paths should be a list")
         for path in paths:
             links = set()
             for l, lv in self.links.items():
@@ -1706,6 +1711,8 @@ class MultiHAClient(object):
         return self.nsclients[nameservice].df()
 
     def rename(self, paths, dst):
+        if not isinstance(paths, list):
+            raise InvalidInputException("Paths should be a list")
         for path in paths:
             if self._get_ns(path) != self._get_ns(dst):
                 raise InvalidInputException("Does not match target filesystem")
@@ -1713,6 +1720,8 @@ class MultiHAClient(object):
             yield r
 
     def rename2(self, path, dst, overwriteDest=False):
+        if not isinstance(paths, list):
+            raise InvalidInputException("Paths should be a list")
         for path in paths:
             if self._get_ns(path) != self._get_ns(dst):
                 raise InvalidInputException("Does not match target filesystem")
@@ -1723,6 +1732,8 @@ class MultiHAClient(object):
         yield self._get_client(path).getmerge(self._get_path(path), dst, newline, check_crc)
 
     def stat(self, paths, add_extra=False):
+        if not isinstance(paths, list):
+            raise InvalidInputException("Paths should be a list")
         for path in paths:
             r = self._get_client(path).stat([self._get_path(path)])
             if add_extra:
