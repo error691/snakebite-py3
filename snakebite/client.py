@@ -812,7 +812,7 @@ class Client(object):
                 for load in item:
                     if load['result']:
                         f.write(load['response'])
-                    elif not load['error'] is '':
+                    elif load['error'] != '':
                         if os.path.isfile(temporary_target):
                             os.remove(temporary_target)
                         raise FatalException(load['error'])
@@ -1534,6 +1534,8 @@ class HAClient(Client):
                     self.__handle_request_error(e)
                 except socket.error as e:
                     self.__handle_socket_error(e)
+                except StopIteration as e:
+                    break
         return wrapped
 
     @staticmethod
@@ -1550,6 +1552,8 @@ class HAClient(Client):
                     self.__handle_request_error(e)
                 except socket.error as e:
                     self.__handle_socket_error(e)
+                except StopIteration as e:
+                    break
         return wrapped
 
 HAClient._wrap_methods()
